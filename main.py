@@ -2,6 +2,8 @@ import pygame
 from pong import Game
 import neat
 import os
+import pickle
+
 
 width,height = 800,600
 window = pygame.display.set_mode((width,height))
@@ -13,28 +15,41 @@ class PongGame:
         self.right_paddle = self.game.right_paddle
         self.ball = self.game.ball
 
-    # def testai(self):
-    #     run = True
-    #     clock = pygame.time.Clock()
+    def testai(self,genome,config):
+        net = neat.nn.FeedForwardNetwork.create(genome,config)
 
-    #     while run:
-    #         clock.tick(60)
-    #         for event in pygame.event.get():
-    #             if event.type == pygame.QUIT:
-    #                 run = False
 
-    #         keys = pygame.key.get_pressed()
-    #         if keys[pygame.K_w]:
-    #             game.move_paddle(left=True,up=True)
-    #         if keys[pygame.K_s]:
-    #             game.move_paddle(left=True,up=False)  
+        run = True
+        clock = pygame.time.Clock()
 
-    #         game_info = game.loop()
-    #         print(game_info.left_score,game_info.right_score)
-    #         game.draw(False,True)
-    #         pygame.display.update()
+        while run:
+            clock.tick(60)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
 
-        # pygame.quit()
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_w]:
+                self.game.move_paddle(left=False,up=True)
+            if keys[pygame.K_s]:
+                self.game.move_paddle(left=False,up=False)  
+
+
+            output = net.activate((self.left_paddle.y,self.ball.y,abs(self.left_paddle.x-self.ball.x)))
+            decision = output.index(max(output))
+            if decision == 0 :
+                pass
+            elif decision == 1:
+                self.game.move_paddle(left=True,up=True)
+            else :
+                self.game.move_paddle(left=True,up=False)
+
+            game_info = self.game.loop()
+            # print(game_info.left_score,game_info.right_score)
+            self.game.draw(True,False)
+            pygame.display.update()
+
+        pygame.quit()
 
     def train_ai(self,genome1,genome2,config):
         net1 = neat.nn.FeedForwardNetwork.create(genome1,config)
@@ -112,6 +127,17 @@ def run_neat(config):
     p.add_reporter(neat.Checkpointer(1))
 
     winner = p.run(eval_genomes,50)
+    with open("best.pickle","wb") as f:
+        pickle.dump(winner,f)
+
+def test_ai(config):
+    width,height = 800,600
+    window = pygame.display.set_mode((width,height))
+    with open("best.pickle","rb") as f:
+        winner = pickle.load(f)
+
+    game = PongGame(window,width,height)
+    game.testai(winner,config)
 
 
 if __name__ == "__main__":
@@ -121,4 +147,5 @@ if __name__ == "__main__":
     config = neat.Config(neat.DefaultGenome,neat.DefaultReproduction,
                          neat.DefaultSpeciesSet,neat.DefaultStagnation,
                          config_path)
-    run_neat(config)
+    # run_neat(config)
+    test_ai(config)
